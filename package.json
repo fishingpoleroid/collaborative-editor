@@ -1,0 +1,18 @@
+{
+  "name": "collaborative-editor",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "quill": "^2.0.3",
+    "y-quill": "^1.0.0",
+    "y-websocket": "^3.1.0",
+    "yjs": "^13.6.33"
+  }
+}
