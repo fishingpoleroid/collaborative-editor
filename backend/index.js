@@ -1,42 +1,50 @@
-import express from 'express';
-import http from 'http';
 import { WebSocketServer } from 'ws';
-import { setupWSConnection } from '@y/websocket-server/utils';
-import cors from 'cors';
+import * as Y from 'yjs';
+import { db } from './src/prisma/db.js';
+import { createRequire } from 'module';
 
-const app = express();
-app.use(cors());
+// 1. Create a CommonJS require function to bypass ESM strict pathing
+const require = createRequire(import.meta.url);
+const { setupWSConnection, setPersistence } = require('y-websocket/bin/utils.js');
 
-const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ port: 1234 });
 
-wss.on('connection', (ws, req) => {
-  console.info(JSON.stringify({
-    level: 'info',
-    event: 'ws_connection_established',
-    ip: req.socket.remoteAddress,
-    timestamp: new Date().toISOString()
-  }));
-  
-  setupWSConnection(ws, req);
-  
-  ws.on('close', () => {
-    console.info(JSON.stringify({
-      level: 'info',
-      event: 'ws_connection_closed',
-      ip: req.socket.remoteAddress,
-      timestamp: new Date().toISOString()
-    }));
-  });
+// 2. Bind PostgreSQL to the Yjs persistence lifecycle
+setPersistence({
+  bindState: async (docName, ydoc) => {
+    try {
+      const existing = await db.orm.public.Document.first({
+        roomName: docName
+      });
+
+      if (existing && existing.state) {
+        console.log(`[DB] Loaded existing document for ${docName} (${existing.state.length} bytes)`);
+        Y.applyUpdate(ydoc, new Uint8Array(existing.state));
+      } else {
+        console.log(`[DB] No existing document found. Starting fresh for ${docName}`);
+      }
+    } catch (err) {
+      console.error('[DB] Error loading document:', err);
+    }
+  },
+  writeState: async (docName, ydoc) => {
+    try {
+      const state = Buffer.from(Y.encodeStateAsUpdate(ydoc));
+      await db.orm.public.Document.upsert({
+        create: { roomName: docName, state },
+        update: { state },
+        conflictOn: { roomName: docName },
+      });
+      console.log(`[DB] Successfully saved state for ${docName}`);
+    } catch (err) {
+      console.error('[DB] Failed to save update to database:', err);
+    }
+  }
 });
 
-const PORT = process.env.PORT || 1234;
-server.listen(PORT, () => {
-  console.info(JSON.stringify({
-    level: 'info',
-    event: 'server_started',
-    port: PORT,
-    env: process.env.NODE_ENV || 'development',
-    timestamp: new Date().toISOString()
-  }));
+// 3. Let y-websocket handle the complex sync protocol and awareness data
+wss.on('connection', (conn, req) => {
+  setupWSConnection(conn, req);
 });
+
+console.log('WebSocket persistence server running on ws://localhost:1234');

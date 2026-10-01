@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# AI Assistant caches
+.agents/
+.claude/
+.cursor/
+.devin/

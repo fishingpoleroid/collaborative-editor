@@ -1,0 +1,11 @@
+// use prisma-8
+
+model Document {
+  id        String   @id @default(uuid())
+  roomName  String   @unique
+  state     Bytes
+  createdAt temporal.createdAtJsDate()
+  updatedAt temporal.updatedAtJsDate()
+
+  @@index([roomName])
+}

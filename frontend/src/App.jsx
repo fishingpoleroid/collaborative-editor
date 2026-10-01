@@ -19,7 +19,7 @@ export default function App() {
     
     const provider = new WebsocketProvider(
       'ws://localhost:1234', 
-      'document-room-1', 
+      'default-room', 
       ydoc
     );
     
